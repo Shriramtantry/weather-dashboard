@@ -3,6 +3,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import com.google.gson.Gson;
 
 import io.javalin.Javalin;
 
@@ -23,36 +24,35 @@ public class Main {
         // This is our new endpoint for fetching weather.
         // It listens for GET requests to the "/api/weather" address.
         // This is our endpoint for fetching weather.
+        // This is our endpoint for fetching weather.
         app.get("/api/weather", ctx -> {
-            // Get the city name from the user's request.
             String city = ctx.queryParam("city");
+            String weatherApiUrl = "https://api.openweathermap.org/data/2.5/weather?q=" + city + "&appid=" + API_KEY + "&units=metric"; // Added &units=metric for Celsius
 
-            // --- This is the new logic for calling the external API ---
-
-            // 1. Build the full URL for the OpenWeatherMap API call.
-            String weatherApiUrl = "https://api.openweathermap.org/data/2.5/weather?q=" + city + "&appid=" + API_KEY;
-
-            // 2. Create a new HttpClient. This is the "phone" we will use to make the call.
             HttpClient client = HttpClient.newHttpClient();
-
-            // 3. Create a new HttpRequest. This is the "message" we are sending.
             HttpRequest request = HttpRequest.newBuilder()
-                    .uri(URI.create(weatherApiUrl)) // Set the address we are calling.
-                    .build(); // Build the request.
+                    .uri(URI.create(weatherApiUrl))
+                    .build();
 
-            // 4. Send the request and get the response.
-            // The response body (the actual data) will be a String.
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-
-            // 5. Get the raw JSON data from the response.
             String weatherJson = response.body();
 
-            // 6. Print the raw JSON to our own console to confirm we received it.
-            System.out.println("Received weather data: " + weatherJson);
+            // --- THIS IS THE NEW TRANSLATION LOGIC ---
 
-            // 7. Send the raw JSON data back to the user's browser.
-            ctx.header("Content-Type", "application/json"); // Tell the browser this is JSON data.
-            ctx.result(weatherJson);
+            // 1. Create a new instance of our Gson translator.
+            Gson gson = new Gson();
+
+            // 2. Tell Gson to read the JSON string and fill out a WeatherResponse blueprint.
+            WeatherResponse weatherResponse = gson.fromJson(weatherJson, WeatherResponse.class);
+
+            // 3. Now we can easily get the specific data we want from our organized objects.
+            double temperature = weatherResponse.getMain().getTemp();
+
+            // 4. Print the clean temperature to our console to confirm it works.
+            System.out.println("The temperature in " + city + " is: " + temperature + "°C");
+
+            // 5. Send a clean, simple message back to the browser.
+            ctx.result("The temperature in " + city + " is: " + temperature + "°C");
         });
     }
 }
